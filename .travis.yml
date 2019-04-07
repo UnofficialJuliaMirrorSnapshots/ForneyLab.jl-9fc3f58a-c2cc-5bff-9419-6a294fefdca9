@@ -1,0 +1,12 @@
+language: julia
+os:
+  - linux
+  - osx
+julia:
+  - 0.7
+  - 1.0
+notifications:
+  email: false
+script:
+  - julia -e 'mv("_Project.toml", "Project.toml")'
+  - julia -e 'import Pkg; Pkg.build(); Pkg.test()'
