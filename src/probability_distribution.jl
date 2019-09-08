@@ -1,4 +1,5 @@
 export
+FactorFunction,
 ProbabilityDistribution,
 Univariate,
 Multivariate,
@@ -22,13 +23,16 @@ abstract type Univariate <: VariateType end
 abstract type Multivariate <: VariateType end
 abstract type MatrixVariate <: VariateType end
 
-"""Encodes a probability distribution as a `FactorNode` of type `family` with fixed interfaces"""
-struct ProbabilityDistribution{var_type<:VariateType, family<:FactorNode}
+"""Types through which a probability distribution may be defined"""
+const FactorFunction = Union{FactorNode, Function}
+
+"""Encodes a probability distribution as a `FactorFunction` of type `family` with fixed interfaces"""
+struct ProbabilityDistribution{var_type<:VariateType, family<:FactorFunction}
     params::Dict
 end
 
 """Extract VariateType from dist"""
-variateType(dist::ProbabilityDistribution{V, F}) where {V<:VariateType, F<:FactorNode} = V
+variateType(dist::ProbabilityDistribution{V, F}) where {V<:VariateType, F<:FactorFunction} = V
 
 show(io::IO, dist::ProbabilityDistribution) = println(io, format(dist))
 
@@ -63,6 +67,8 @@ ProbabilityDistribution(::Type{MatrixVariate}, ::Type{PointMass}; m::AbstractMat
 
 unsafeMean(dist::ProbabilityDistribution{T, PointMass}) where T<:VariateType = deepcopy(dist.params[:m])
 
+unsafeMode(dist::ProbabilityDistribution{T, PointMass}) where T<:VariateType = deepcopy(dist.params[:m])
+
 unsafeMeanVector(dist::ProbabilityDistribution{Univariate, PointMass}) = [dist.params[:m]]
 unsafeMeanVector(dist::ProbabilityDistribution{Multivariate, PointMass}) = deepcopy(dist.params[:m])
 
@@ -87,6 +93,19 @@ unsafeMeanCov(dist::ProbabilityDistribution) = (unsafeMean(dist), unsafeCov(dist
 unsafeWeightedMeanPrecision(dist::ProbabilityDistribution) = (unsafeWeightedMean(dist), unsafePrecision(dist)) # Can be overloaded for efficiency
 
 isProper(::ProbabilityDistribution{T, PointMass}) where T<:VariateType = true
+
+# Probability distribution parametrized by function
+slug(::Type{Function}) = "f"
+
+format(dist::ProbabilityDistribution{V, Function}) where V<:VariateType = "$(dist.params)"
+
+# Distribution constructors
+ProbabilityDistribution(::Type{V}, ::Type{Function}; kwargs...) where V<:VariateType = ProbabilityDistribution{V, Function}(kwargs)
+ProbabilityDistribution(::Type{Function}; kwargs...) = ProbabilityDistribution{Univariate, Function}(kwargs)
+
+unsafeMode(dist::ProbabilityDistribution{T, Function}) where T<:VariateType = deepcopy(dist.params[:mode])
+
+vague(::Type{Function}) = ProbabilityDistribution(Univariate, Function)
 
 """
 Compute conditional differential entropy: H(Y|X) = H(Y, X) - H(X)
